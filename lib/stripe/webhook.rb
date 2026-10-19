@@ -44,7 +44,12 @@ module Stripe
     private_class_method :_build_v1_event
 
     def self._maybe_extract_from_cloud_provider_envelope(payload)
-      payload = payload.encode("utf-8") if payload.respond_to?(:encode)
+      if payload.respond_to?(:encoding) && payload.encoding == Encoding::ASCII_8BIT
+        # Rails tags raw request bodies as binary, which can't be transcoded; the bytes are UTF-8.
+        payload = payload.dup.force_encoding("utf-8")
+      elsif payload.respond_to?(:encode)
+        payload = payload.encode("utf-8")
+      end
       data = JSON.parse(payload, symbolize_names: true)
 
       # Could add as many checks as we want here, but we'll start simple

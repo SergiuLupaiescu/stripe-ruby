@@ -168,6 +168,39 @@ class CloudProviderEventTest < Test::Unit::TestCase
     assert_equal "customer.created", event.type
   end
 
+  def test_construct_event_without_verification_accepts_binary_payload_with_non_ascii
+    payload = JSON.generate({
+      "id" => "evt_1",
+      "object" => "event",
+      "type" => "payment_intent.payment_failed",
+      "data" => { "object" => { "name" => "Andrés" } },
+    }).b
+    assert_equal Encoding::ASCII_8BIT, payload.encoding
+
+    event = Stripe::Webhook.construct_event_without_verification(payload)
+    assert_equal "evt_1", event.id
+    assert_equal "Andrés", event.data.object.name
+    assert_equal Encoding::ASCII_8BIT, payload.encoding
+  end
+
+  def test_parse_event_notification_without_verification_accepts_binary_payload
+    payload = JSON.generate({
+      "id" => "evt_234",
+      "object" => "v2.core.event",
+      "type" => "v1.billing.meter.error_report_triggered",
+      "created" => "2022-02-15T00:27:45.330Z",
+      "related_object" => {
+        "id" => "mtr_123",
+        "type" => "billing.meter",
+        "url" => "/v1/billing/meters/mtr_123",
+        "description" => "Andrés",
+      },
+    }).b
+
+    notification = @client.parse_event_notification_without_verification(payload)
+    assert_equal "evt_234", notification.id
+  end
+
   def test_construct_event_via_webhook_module_rejects_v2_thin_event
     error = assert_raises(ArgumentError) do
       Stripe::Webhook.construct_event_without_verification(RAW_V2_EVENT_PAYLOAD)
